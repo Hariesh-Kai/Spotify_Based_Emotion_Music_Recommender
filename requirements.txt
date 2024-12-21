@@ -1,0 +1,9 @@
+streamlit==1.18.1
+opencv-python==4.7.0.72
+tensorflow==2.12.0
+keras==2.12.0
+joblib==1.2.0
+mediapipe==0.10.2
+spotipy==2.19.0
+pandas==1.5.3
+numpy==1.23.4
