@@ -3,8 +3,7 @@ opencv-python==4.7.0.72
 tensorflow==2.17.0
 keras>=3.2.0
 joblib==1.2.0
-mediapipe==0.10.2
+mediapipe==0.10.18
 spotipy==2.19.0
 pandas==1.5.3
 numpy==1.23.4
-
