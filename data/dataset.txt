@@ -1,0 +1,4 @@
+fer2013
+affectnet
+25 emotion colored emotion
+3 emotions(sad,surprise,happy) emotion
