@@ -21,7 +21,7 @@ sp = spotipy.Spotify(client_credentials_manager=client_credentials_manager)
 @st.cache_resource
 def load_model_and_encoder():
     model = keras.models.load_model('./models/mediapipe_3emotion_model_1.h5')
-    le = joblib.load('./Label Encoder/label_encoder_3_emotion.pkl')
+    le = joblib.load('./Label_Encoder/label_encoder_3_emotion.pkl')
     return model, le
 
 model, le = load_model_and_encoder()
