@@ -8,15 +8,17 @@ import mediapipe as mp
 import pandas as pd
 import time
 import pickle
+import requests
+from io import BytesIO
 import spotipy
 from spotipy.oauth2 import SpotifyClientCredentials
 
-# Load the trained model and label encoder
-model_path = 'models/mediapipe_3emotion_model_1.h5'
-label_encoder_path = 'Label_Encoder/label_encoder_3_emotion.pkl'
+# Load the trained model and label encoder from cloud URLs
+MODEL_URL = "https://path_to_your_model/mediapipe_3emotion_model_1.h5"
+LABEL_ENCODER_URL = "https://path_to_your_model/label_encoder_3_emotion.pkl"
 
-model = keras.models.load_model(model_path)
-le = joblib.load(label_encoder_path)
+model = keras.models.load_model(BytesIO(requests.get(MODEL_URL).content))
+le = pickle.load(BytesIO(requests.get(LABEL_ENCODER_URL).content))
 
 # Initialize MediaPipe Face Mesh
 mp_face_mesh = mp.solutions.face_mesh
@@ -68,46 +70,15 @@ def extract_landmarks(image):
         return landmark_array.flatten()
     return None
 
-# Process each video frame to predict emotion
-def process_frame(frame):
-    landmarks = extract_landmarks(frame)
+# Process each image to predict emotion
+def process_image(image):
+    landmarks = extract_landmarks(image)
     if landmarks is not None:
         prediction = model.predict(np.expand_dims(landmarks, axis=0))
         predicted_class = np.argmax(prediction)
         emotion = le.inverse_transform([predicted_class])[0]
-        return frame, emotion
-    return frame, None
-
-# Real-time emotion detection using webcam
-def real_time_emotion_detection():
-    cap = cv2.VideoCapture(0)
-    if not cap.isOpened():
-        st.error("Error: Could not open webcam.")
-        return
-
-    st.write("Detecting emotion...")
-
-    video_placeholder = st.empty()
-    latest_emotion = None
-
-    while cap.isOpened():
-        ret, frame = cap.read()
-        if not ret:
-            st.error("Error: Could not read frame.")
-            break
-
-        frame, detected_emotion = process_frame(frame)
-        video_placeholder.image(frame, channels="BGR")
-
-        if detected_emotion:
-            st.session_state['detected_emotion'] = detected_emotion
-            st.write(f"Detected Emotion: {detected_emotion}")
-            cap.release()  # Release webcam after detecting emotion
-            break
-
-        time.sleep(0.1)
-
-    cap.release()
+        return image, emotion
+    return image, None
 
 # Load music and similarity data based on detected emotion
 def load_music_data(emotion):
@@ -123,15 +94,22 @@ st.write("This app detects your emotion and recommends music based on the detect
 if 'detected_emotion' not in st.session_state:
     st.session_state['detected_emotion'] = None
 
-# Step 1: Start emotion detection
-if st.button("Start Emotion Detection"):
-    real_time_emotion_detection()
+# Step 1: Start emotion detection with camera input
+image_file = st.camera_input("Take a photo")
+if image_file:
+    # Convert the uploaded image to a format usable by OpenCV
+    file_bytes = np.asarray(bytearray(image_file.read()), dtype=np.uint8)
+    frame = cv2.imdecode(file_bytes, 1)
+    frame, detected_emotion = process_image(frame)
+    if detected_emotion:
+        st.session_state['detected_emotion'] = detected_emotion
+        st.write(f"Detected Emotion: {detected_emotion}")
 
 # Step 2: Once emotion is detected, show recommendations
 if st.session_state['detected_emotion']:
     emotion = st.session_state['detected_emotion']
     st.write(f"Emotion Detected: {emotion}")
-    
+
     # Load the appropriate music dataset based on emotion
     music, similarity = load_music_data(emotion)
 
