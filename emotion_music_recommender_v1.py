@@ -18,8 +18,7 @@ MODEL_PATH = "./models/mediapipe_3emotion_model_1.h5"
 LABEL_ENCODER_PATH = "./Label_Encoder/label_encoder_3_emotion.pkl"
 
 model = keras.models.load_model(MODEL_PATH)
-with open(LABEL_ENCODER_PATH, 'rb') as file:
-    le = pickle.load(file)
+le = joblib.load(label_encoder_path)
 
 # Initialize MediaPipe Face Mesh
 mp_face_mesh = mp.solutions.face_mesh
