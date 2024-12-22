@@ -12,8 +12,8 @@ import spotipy
 from spotipy.oauth2 import SpotifyClientCredentials
 
 # Load the trained model and label encoder
-MODEL_PATH = 'D:/Music_Recommender/models/mediapipe_3emotion_model_1.h5'
-LABEL_ENCODER_PATH = 'D:/Music_Recommender/Label_Encoder/label_encoder_3_emotion.pkl'
+MODEL_PATH = 'models/mediapipe_3emotion_model_1.h5'
+LABEL_ENCODER_PATH = 'Label_Encoder/label_encoder_3_emotion.pkl'
 model = keras.models.load_model(MODEL_PATH)
 le = joblib.load(LABEL_ENCODER_PATH)
 
@@ -113,8 +113,8 @@ def real_time_emotion_detection():
 
 # Load music and similarity data based on detected emotion
 def load_music_data(emotion):
-    music = pickle.load(open(f'D:/Music_Recommender/pickle/dataframe/{emotion.lower()}_df.pkl', 'rb'))
-    similarity = pickle.load(open(f'D:/Music_Recommender/pickle/similarity/{emotion.lower()}_similarity.pkl', 'rb'))
+    music = pickle.load(open(f'pickle/dataframe/{emotion.lower()}_df.pkl', 'rb'))
+    similarity = pickle.load(open(f'pickle/similarity/{emotion.lower()}_similarity.pkl', 'rb'))
     return music, similarity
 
 # Streamlit app setup
