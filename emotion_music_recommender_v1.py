@@ -13,12 +13,13 @@ from io import BytesIO
 import spotipy
 from spotipy.oauth2 import SpotifyClientCredentials
 
-# Load the trained model and label encoder from cloud URLs
-MODEL_URL = "https://path_to_your_model/mediapipe_3emotion_model_1.h5"
-LABEL_ENCODER_URL = "https://path_to_your_model/label_encoder_3_emotion.pkl"
+# Load the trained model and label encoder from local files
+MODEL_PATH = "D:/Music_Recommender/mediapipe_3emotion_model_1.h5"
+LABEL_ENCODER_PATH = "D:/Music_Recommender/Label_Encoder/label_encoder_3_emotion.pkl"
 
-model = keras.models.load_model(BytesIO(requests.get(MODEL_URL).content))
-le = pickle.load(BytesIO(requests.get(LABEL_ENCODER_URL).content))
+model = keras.models.load_model(MODEL_PATH)
+with open(LABEL_ENCODER_PATH, 'rb') as file:
+    le = pickle.load(file)
 
 # Initialize MediaPipe Face Mesh
 mp_face_mesh = mp.solutions.face_mesh
