@@ -114,10 +114,14 @@ def real_time_emotion_detection():
     cap.release()
 
 # Load music and similarity data based on detected emotion
+# For pickled files
 def load_music_data(emotion):
-    music = pickle.load(open(f'pickle/dataframe/{emotion.lower()}_df.pkl', 'rb'))
-    similarity = pickle.load(open(f'pickle/similarity/{emotion.lower()}_similarity.pkl', 'rb'))
+    music_path = os.path.join(BASE_DIR, 'pickle', 'dataframe', f'{emotion.lower()}_df.pkl')
+    similarity_path = os.path.join(BASE_DIR, 'pickle', 'similarity', f'{emotion.lower()}_similarity.pkl')
+    music = pickle.load(open(music_path, 'rb'))
+    similarity = pickle.load(open(similarity_path, 'rb'))
     return music, similarity
+
 
 # Streamlit app setup
 st.title("Real-Time Emotion-Based Music Recommender")
