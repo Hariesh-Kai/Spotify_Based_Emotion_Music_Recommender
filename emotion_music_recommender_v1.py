@@ -19,7 +19,7 @@ sp = spotipy.Spotify(client_credentials_manager=client_credentials_manager)
 # Define relative paths
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 MODEL_PATH = os.path.join(BASE_DIR, 'models', 'mediapipe_3emotion_model_1.h5')
-LABEL_ENCODER_PATH = os.path.join(BASE_DIR, 'Label Encoder', 'label_encoder_3_emotion.pkl')
+LABEL_ENCODER_PATH = os.path.join(BASE_DIR, 'Label_Encoder', 'label_encoder_3_emotion.pkl')
 
 @st.cache_resource
 def load_resources():
