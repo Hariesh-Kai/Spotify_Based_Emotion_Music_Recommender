@@ -6,53 +6,37 @@ import joblib
 from tensorflow import keras
 import mediapipe as mp
 import pandas as pd
+import time
 import pickle
 import spotipy
 from spotipy.oauth2 import SpotifyClientCredentials
 
-# Spotify credentials from Streamlit secrets
-CLIENT_ID = st.secrets["SPOTIFY_CLIENT_ID"]
-CLIENT_SECRET = st.secrets["SPOTIFY_CLIENT_SECRET"]
+# Load the trained model and label encoder
+model_path = 'D:/Music_Recommender/models/mediapipe_3emotion_model_1.h5'
+label_encoder_path = 'D:/Music_Recommender/Label_Encoder/label_encoder_3_emotion.pkl'
+model = keras.models.load_model(model_path)
+le = joblib.load(label_encoder_path)
+
+# Initialize MediaPipe Face Mesh
+mp_face_mesh = mp.solutions.face_mesh
+face_mesh = mp_face_mesh.FaceMesh(static_image_mode=True, max_num_faces=1)
+
+# Spotify credentials
+CLIENT_ID = "defbade4e685489eb7339f1c0d2e7817"
+CLIENT_SECRET = "8ff0954c9a21473f99f164a55aa4de0b"
 client_credentials_manager = SpotifyClientCredentials(client_id=CLIENT_ID, client_secret=CLIENT_SECRET)
 sp = spotipy.Spotify(client_credentials_manager=client_credentials_manager)
 
-# Define relative paths
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-MODEL_PATH = os.path.join(BASE_DIR, 'models', 'mediapipe_3emotion_model_1.h5')
-LABEL_ENCODER_PATH = os.path.join(BASE_DIR, 'Label_Encoder', 'label_encoder_3_emotion.pkl')
-
-@st.cache_resource
-def load_resources():
-    try:
-        model = keras.models.load_model(MODEL_PATH)
-        le = joblib.load(LABEL_ENCODER_PATH)
-        return model, le
-    except Exception as e:
-        st.error(f"Error loading model or encoder: {e}")
-        return None, None
-
-model, le = load_resources()
-
-# Extract face landmarks using MediaPipe
-def extract_landmarks(image):
-    image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-    results = mp.solutions.face_mesh.FaceMesh(static_image_mode=True).process(image_rgb)
-
-    if results.multi_face_landmarks:
-        landmarks = results.multi_face_landmarks[0]
-        landmark_array = np.array([[landmark.x, landmark.y, landmark.z] for landmark in landmarks.landmark])
-        return landmark_array.flatten()
-    return None
-
-# Process uploaded image for emotion prediction
-def process_image(image):
-    landmarks = extract_landmarks(image)
-    if landmarks is not None:
-        prediction = model.predict(np.expand_dims(landmarks, axis=0))
-        predicted_class = np.argmax(prediction)
-        emotion = le.inverse_transform([predicted_class])[0]
-        return emotion
-    return None
+# Get album cover URL and Spotify track URL
+def get_song_album_cover_url_and_track_url(song_name, artist_name):
+    search_query = f"track:{song_name} artist:{artist_name}"
+    results = sp.search(q=search_query, type="track")
+    if results and results["tracks"]["items"]:
+        track_info = results["tracks"]["items"][0]
+        album_cover_url = track_info["album"]["images"][0]["url"]
+        track_url = track_info["external_urls"]["spotify"]
+        return album_cover_url, track_url
+    return "https://i.postimg.cc/0QNxYz4V/social.png", None
 
 # Recommend songs based on similarity
 def recommend(song, music, similarity):
@@ -72,22 +56,97 @@ def recommend(song, music, similarity):
 
     return recommended_music_names, recommended_music_posters, recommended_music_links
 
-# Get album cover URL and Spotify track URL
-def get_song_album_cover_url_and_track_url(song_name, artist_name):
-    search_query = f"track:{song_name} artist:{artist_name}"
-    results = sp.search(q=search_query, type="track")
-    if results and results["tracks"]["items"]:
-        track_info = results["tracks"]["items"][0]
-        album_cover_url = track_info["album"]["images"][0]["url"]
-        track_url = track_info["external_urls"]["spotify"]
-        return album_cover_url, track_url
-    return "https://i.postimg.cc/0QNxYz4V/social.png", None
+# Extract face landmarks using MediaPipe
+def extract_landmarks(image):
+    image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+    results = face_mesh.process(image_rgb)
 
-# Load music and similarity data dynamically
+    if results.multi_face_landmarks:
+        landmarks = results.multi_face_landmarks[0]
+        landmark_array = np.array([[landmark.x, landmark.y, landmark.z] for landmark in landmarks.landmark])
+        return landmark_array.flatten()
+    return None
+
+# Process each video frame to predict emotion
+def process_frame(frame):
+    landmarks = extract_landmarks(frame)
+    if landmarks is not None:
+        prediction = model.predict(np.expand_dims(landmarks, axis=0))
+        predicted_class = np.argmax(prediction)
+        emotion = le.inverse_transform([predicted_class])[0]
+        return frame, emotion
+    return frame, None
+
+# Real-time emotion detection using webcam
+def real_time_emotion_detection():
+    cap = cv2.VideoCapture(0)
+    if not cap.isOpened():
+        st.error("Error: Could not open webcam.")
+        return
+
+    st.write("Detecting emotion...")
+
+    video_placeholder = st.empty()
+    latest_emotion = None
+
+    while cap.isOpened():
+        ret, frame = cap.read()
+        if not ret:
+            st.error("Error: Could not read frame.")
+            break
+
+        frame, detected_emotion = process_frame(frame)
+        video_placeholder.image(frame, channels="BGR")
+
+        if detected_emotion:
+            st.session_state['detected_emotion'] = detected_emotion
+            st.write(f"Detected Emotion: {detected_emotion}")
+            cap.release()  # Release webcam after detecting emotion
+            break
+
+        time.sleep(0.1)
+
+    cap.release()
+
+# Load music and similarity data based on detected emotion
 def load_music_data(emotion):
-    dataframe_path = os.path.join(BASE_DIR, 'pickle', 'dataframe', f'{emotion.lower()}_df.pkl')
-    similarity_path = os.path.join(BASE_DIR, 'pickle', 'similarity', f'{emotion.lower()}_similarity.pkl')
-    with open(dataframe_path, 'rb') as df_file, open(similarity_path, 'rb') as sim_file:
-        music = pickle.load(df_file)
-        similarity = pickle.load(sim_file)
+    music = pickle.load(open(f'D:/Music_Recommender/pickle/dataframe/{emotion.lower()}_df.pkl', 'rb'))
+    similarity = pickle.load(open(f'D:/Music_Recommender/pickle/similarity/{emotion.lower()}_similarity.pkl', 'rb'))
     return music, similarity
+
+# Streamlit app setup
+st.title("Real-Time Emotion-Based Music Recommender")
+st.write("This app detects your emotion and recommends music based on the detected emotion.")
+
+# Initialize session state for emotion
+if 'detected_emotion' not in st.session_state:
+    st.session_state['detected_emotion'] = None
+
+# Step 1: Start emotion detection
+if st.button("Start Emotion Detection"):
+    real_time_emotion_detection()
+
+# Step 2: Once emotion is detected, show recommendations
+if st.session_state['detected_emotion']:
+    emotion = st.session_state['detected_emotion']
+    st.write(f"Emotion Detected: {emotion}")
+    
+    # Load the appropriate music dataset based on emotion
+    music, similarity = load_music_data(emotion)
+
+    # Step 3: Select song from the detected emotion's song list
+    song_list = music['song'].values
+    selected_song = st.selectbox("Type or select a song from the dropdown", song_list)
+
+    # Step 4: Show recommendations based on selected song
+    if st.button('Show Recommendation'):
+        recommended_music_names, recommended_music_posters, recommended_music_links = recommend(selected_song, music, similarity)
+        cols = st.columns(5)
+        for i, col in enumerate(cols):
+            if i < len(recommended_music_names):
+                with col:
+                    st.text(recommended_music_names[i])
+                    if recommended_music_links[i]:
+                        # Display image as a clickable link
+                        link = f'<a href="{recommended_music_links[i]}" target="_blank"><img src="{recommended_music_posters[i]}" width="100" /></a>'
+                        st.markdown(link, unsafe_allow_html=True)
