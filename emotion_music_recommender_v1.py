@@ -18,7 +18,7 @@ client_credentials_manager = SpotifyClientCredentials(client_id=CLIENT_ID, clien
 sp = spotipy.Spotify(client_credentials_manager=client_credentials_manager)
 
 # Load model and label encoder dynamically
-@st.cache_resource
+
 def load_model_and_encoder():
     model = keras.models.load_model('./models/mediapipe_3emotion_model_1.h5')
     model_path = os.path.join(os.getcwd(), 'Label_Encoder', 'label_encoder_3_emotion.pkl')
