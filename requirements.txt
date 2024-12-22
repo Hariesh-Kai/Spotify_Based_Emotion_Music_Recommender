@@ -1,7 +1,6 @@
 streamlit
 opencv-python
 tensorflow
-keras
 joblib
 mediapipe
 spotipy
