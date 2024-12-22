@@ -20,16 +20,19 @@ sp = spotipy.Spotify(client_credentials_manager=client_credentials_manager)
 # Load model and label encoder dynamically
 
 def load_model_and_encoder():
-    model = keras.models.load_model('./models/mediapipe_3emotion_model_1.h5')
-    model_path = os.path.join(os.getcwd(), 'Label_Encoder', 'label_encoder_3_emotion.pkl')
-    le = joblib.load(model_path)
-    return model, le
+    try:
+        model = keras.models.load_model('./models/mediapipe_3emotion_model_1.h5')
+        model_path = os.path.join(os.getcwd(), 'Label_Encoder', 'label_encoder_3_emotion.pkl')
+        
+        if not os.path.exists(model_path):
+            raise FileNotFoundError(f"{model_path} not found in the deployment environment.")
+        
+        le = joblib.load(model_path)
+        return model, le
+    except Exception as e:
+        st.error(f"Error loading model or encoder: {e}")
+        return None, None
 
-model, le = load_model_and_encoder()
-
-# Initialize MediaPipe Face Mesh
-mp_face_mesh = mp.solutions.face_mesh
-face_mesh = mp_face_mesh.FaceMesh(static_image_mode=True, max_num_faces=1)
 
 # Extract face landmarks using MediaPipe
 def extract_landmarks(image):
