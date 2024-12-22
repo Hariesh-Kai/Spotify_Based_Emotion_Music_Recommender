@@ -11,19 +11,22 @@ import pickle
 import spotipy
 from spotipy.oauth2 import SpotifyClientCredentials
 
+# Set base directory for relative paths
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
 # Load the trained model and label encoder
-model_path = 'D:/Music_Recommender/models/mediapipe_3emotion_model_1.h5'
-label_encoder_path = 'D:/Music_Recommender/Label_Encoder/label_encoder_3_emotion.pkl'
-model = keras.models.load_model(model_path)
-le = joblib.load(label_encoder_path)
+MODEL_PATH = os.path.join(BASE_DIR, 'models', 'mediapipe_3emotion_model_1.h5')
+LABEL_ENCODER_PATH = os.path.join(BASE_DIR, 'Label_Encoder', 'label_encoder_3_emotion.pkl')
+model = keras.models.load_model(MODEL_PATH)
+le = joblib.load(LABEL_ENCODER_PATH)
 
 # Initialize MediaPipe Face Mesh
 mp_face_mesh = mp.solutions.face_mesh
 face_mesh = mp_face_mesh.FaceMesh(static_image_mode=True, max_num_faces=1)
 
-# Spotify credentials
-CLIENT_ID = "defbade4e685489eb7339f1c0d2e7817"
-CLIENT_SECRET = "8ff0954c9a21473f99f164a55aa4de0b"
+# Spotify credentials (use environment variables)
+CLIENT_ID = os.getenv('SPOTIFY_CLIENT_ID')
+CLIENT_SECRET = os.getenv('SPOTIFY_CLIENT_SECRET')
 client_credentials_manager = SpotifyClientCredentials(client_id=CLIENT_ID, client_secret=CLIENT_SECRET)
 sp = spotipy.Spotify(client_credentials_manager=client_credentials_manager)
 
@@ -45,7 +48,8 @@ def recommend(song, music, similarity):
 
     recommended_music_names = []
     recommended_music_posters = []
-    recommended_music_links = []
+    recommended_music_previews = []
+    recommended_music_ids = []
 
     for i in distances[1:6]:
         artist = music.iloc[i[0]].artist
@@ -54,7 +58,7 @@ def recommend(song, music, similarity):
         recommended_music_names.append(music.iloc[i[0]].song)
         recommended_music_links.append(track_url)
 
-    return recommended_music_names, recommended_music_posters, recommended_music_links
+    return recommended_music_names, recommended_music_posters, recommended_music_previews, recommended_music_ids
 
 # Extract face landmarks using MediaPipe
 def extract_landmarks(image):
@@ -77,41 +81,24 @@ def process_frame(frame):
         return frame, emotion
     return frame, None
 
-# Real-time emotion detection using webcam
+# Real-time emotion detection using the image upload
 def real_time_emotion_detection():
-    cap = cv2.VideoCapture(0)
-    if not cap.isOpened():
-        st.error("Error: Could not open webcam.")
-        return
-
-    st.write("Detecting emotion...")
-
-    video_placeholder = st.empty()
-    latest_emotion = None
-
-    while cap.isOpened():
-        ret, frame = cap.read()
-        if not ret:
-            st.error("Error: Could not read frame.")
-            break
-
-        frame, detected_emotion = process_frame(frame)
-        video_placeholder.image(frame, channels="BGR")
-
+    uploaded_file = st.file_uploader("Upload an image", type=["jpg", "jpeg", "png"])
+    if uploaded_file:
+        file_bytes = np.asarray(bytearray(uploaded_file.read()), dtype=np.uint8)
+        image = cv2.imdecode(file_bytes, 1)
+        _, detected_emotion = process_frame(image)
         if detected_emotion:
             st.session_state['detected_emotion'] = detected_emotion
             st.write(f"Detected Emotion: {detected_emotion}")
-            cap.release()  # Release webcam after detecting emotion
-            break
 
-        time.sleep(0.1)
-
-    cap.release()
 
 # Load music and similarity data based on detected emotion
 def load_music_data(emotion):
-    music = pickle.load(open(f'D:/Music_Recommender/pickle/dataframe/{emotion.lower()}_df.pkl', 'rb'))
-    similarity = pickle.load(open(f'D:/Music_Recommender/pickle/similarity/{emotion.lower()}_similarity.pkl', 'rb'))
+    music_path = os.path.join(BASE_DIR, 'pickle', 'dataframe', f'{emotion.lower()}_df.pkl')
+    similarity_path = os.path.join(BASE_DIR, 'pickle', 'similarity', f'{emotion.lower()}_similarity.pkl')
+    music = pickle.load(open(music_path, 'rb'))
+    similarity = pickle.load(open(similarity_path, 'rb'))
     return music, similarity
 
 # Streamlit app setup
@@ -138,15 +125,25 @@ if st.session_state['detected_emotion']:
     song_list = music['song'].values
     selected_song = st.selectbox("Type or select a song from the dropdown", song_list)
 
-    # Step 4: Show recommendations based on selected song
-    if st.button('Show Recommendation'):
-        recommended_music_names, recommended_music_posters, recommended_music_links = recommend(selected_song, music, similarity)
-        cols = st.columns(5)
-        for i, col in enumerate(cols):
-            if i < len(recommended_music_names):
-                with col:
-                    st.text(recommended_music_names[i])
-                    if recommended_music_links[i]:
-                        # Display image as a clickable link
-                        link = f'<a href="{recommended_music_links[i]}" target="_blank"><img src="{recommended_music_posters[i]}" width="100" /></a>'
-                        st.markdown(link, unsafe_allow_html=True)
+# Step 4: Show recommendations based on selected song
+if st.button('Show Recommendation'):
+    recommended_music_names, recommended_music_posters, recommended_music_previews, recommended_music_ids = recommend(selected_song, music, similarity)
+
+    # Display recommendations in a two-column layout
+    cols = st.columns(2)
+
+    for i in range(len(recommended_music_names)):
+        col = cols[i % 2]
+        with col:
+            st.markdown(
+                f"""
+                <div style="display: flex; align-items: center; justify-content: center; margin-bottom: 20px;">
+                    <iframe src="https://open.spotify.com/embed/track/{recommended_music_ids[i]}" 
+                            width="100%" height="80" frameborder="0" 
+                            allowtransparency="true" allow="encrypted-media" 
+                            style="border-radius: 12px; box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);">
+                    </iframe>
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
