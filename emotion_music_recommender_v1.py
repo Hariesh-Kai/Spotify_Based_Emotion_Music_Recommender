@@ -6,7 +6,6 @@ import joblib
 from tensorflow import keras
 import mediapipe as mp
 import pandas as pd
-import time
 import pickle
 import spotipy
 from spotipy.oauth2 import SpotifyClientCredentials
@@ -17,27 +16,27 @@ CLIENT_SECRET = st.secrets["SPOTIFY_CLIENT_SECRET"]
 client_credentials_manager = SpotifyClientCredentials(client_id=CLIENT_ID, client_secret=CLIENT_SECRET)
 sp = spotipy.Spotify(client_credentials_manager=client_credentials_manager)
 
-# Load model and label encoder dynamically
+# Define relative paths
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+MODEL_PATH = os.path.join(BASE_DIR, 'models', 'mediapipe_3emotion_model_1.h5')
+LABEL_ENCODER_PATH = os.path.join(BASE_DIR, 'Label Encoder', 'label_encoder_3_emotion.pkl')
 
-def load_model_and_encoder():
+@st.cache_resource
+def load_resources():
     try:
-        model = keras.models.load_model('./models/mediapipe_3emotion_model_1.h5')
-        model_path = os.path.join(os.getcwd(), 'Label_Encoder', 'label_encoder_3_emotion.pkl')
-        
-        if not os.path.exists(model_path):
-            raise FileNotFoundError(f"{model_path} not found in the deployment environment.")
-        
-        le = joblib.load(model_path)
+        model = keras.models.load_model(MODEL_PATH)
+        le = joblib.load(LABEL_ENCODER_PATH)
         return model, le
     except Exception as e:
         st.error(f"Error loading model or encoder: {e}")
         return None, None
 
+model, le = load_resources()
 
 # Extract face landmarks using MediaPipe
 def extract_landmarks(image):
     image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-    results = face_mesh.process(image_rgb)
+    results = mp.solutions.face_mesh.FaceMesh(static_image_mode=True).process(image_rgb)
 
     if results.multi_face_landmarks:
         landmarks = results.multi_face_landmarks[0]
@@ -85,46 +84,10 @@ def get_song_album_cover_url_and_track_url(song_name, artist_name):
     return "https://i.postimg.cc/0QNxYz4V/social.png", None
 
 # Load music and similarity data dynamically
-@st.cache_data
 def load_music_data(emotion):
-    with open(f'./pickle/dataframe/{emotion.lower()}_df.pkl', 'rb') as f:
-        music = pickle.load(f)
-    with open(f'./pickle/similarity/{emotion.lower()}_similarity.pkl', 'rb') as f:
-        similarity = pickle.load(f)
+    dataframe_path = os.path.join(BASE_DIR, 'pickle', 'dataframe', f'{emotion.lower()}_df.pkl')
+    similarity_path = os.path.join(BASE_DIR, 'pickle', 'similarity', f'{emotion.lower()}_similarity.pkl')
+    with open(dataframe_path, 'rb') as df_file, open(similarity_path, 'rb') as sim_file:
+        music = pickle.load(df_file)
+        similarity = pickle.load(sim_file)
     return music, similarity
-
-# Streamlit app interface
-st.title("Emotion-Based Music Recommender")
-
-# Step 1: Upload image for emotion detection
-uploaded_file = st.file_uploader("Upload an image with a face", type=["jpg", "jpeg", "png"])
-
-if uploaded_file:
-    # Convert uploaded file to OpenCV format
-    file_bytes = np.asarray(bytearray(uploaded_file.read()), dtype=np.uint8)
-    image = cv2.imdecode(file_bytes, 1)
-
-    # Step 2: Detect emotion
-    emotion = process_image(image)
-    if emotion:
-        st.write(f"Detected Emotion: {emotion}")
-
-        # Step 3: Load data for recommendations
-        music, similarity = load_music_data(emotion)
-
-        # Step 4: Select song and show recommendations
-        song_list = music['song'].values
-        selected_song = st.selectbox("Type or select a song", song_list)
-
-        if st.button('Show Recommendations'):
-            recommended_music_names, recommended_music_posters, recommended_music_links = recommend(selected_song, music, similarity)
-            cols = st.columns(5)
-            for i, col in enumerate(cols):
-                if i < len(recommended_music_names):
-                    with col:
-                        st.text(recommended_music_names[i])
-                        if recommended_music_links[i]:
-                            link = f'<a href="{recommended_music_links[i]}" target="_blank"><img src="{recommended_music_posters[i]}" width="100" /></a>'
-                            st.markdown(link, unsafe_allow_html=True)
-    else:
-        st.error("No face landmarks detected. Please try another image.")
