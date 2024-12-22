@@ -12,8 +12,9 @@ import spotipy
 from spotipy.oauth2 import SpotifyClientCredentials
 
 # Load the trained model and label encoder
-model_path = 'D:/Music_Recommender/models/mediapipe_3emotion_model_1.h5'
-label_encoder_path = 'D:/Music_Recommender/Label_Encoder/label_encoder_3_emotion.pkl'
+model_path = 'models/mediapipe_3emotion_model_1.h5'
+label_encoder_path = 'Label_Encoder/label_encoder_3_emotion.pkl'
+
 model = keras.models.load_model(model_path)
 le = joblib.load(label_encoder_path)
 
