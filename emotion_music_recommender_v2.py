@@ -122,39 +122,47 @@ if image_file:
         
         # Hide the camera input after the detection is complete
         st.session_state['image_taken'] = True  # Track that image was taken and processed
+        st.experimental_rerun()  # Trigger a rerun to update the UI
 
 # Step 2: Once emotion is detected, show recommendations
 if st.session_state['image_taken']:
     emotion = st.session_state['detected_emotion']
     
-    # Load the appropriate music dataset based on emotion
-    music, similarity = load_music_data(emotion)
+    # Hide camera input and show recommendation button
+    st.camera_input("Take a photo")  # Hide the camera input field after the image is taken
 
-    # Step 3: Select song from the detected emotion's song list
-    song_list = music['song'].values
-    selected_song = st.selectbox("Type or select a song from the dropdown", song_list)
+    # Enable the recommendation button after the image is processed
+    recommend_button = st.button("Get Music Recommendations")
 
-    # Step 4: Show recommendations based on selected song
-    if selected_song:
-        recommended_music_names, recommended_music_posters, recommended_music_previews, recommended_music_ids = recommend(selected_song, music, similarity)
-        # Display recommendations in a two-column layout
-        cols = st.columns(2)  # Create two columns
-        for i in range(len(recommended_music_names)):
-            col = cols[i % 2]  # Alternate between the two columns (left and right)
-            with col:
-                st.markdown(
-                    f"""
-                    <div style="
-                        display: flex; 
-                        align-items: center; 
-                        justify-content: center; 
-                        margin-bottom: 20px;">
-                        <iframe src="https://open.spotify.com/embed/track/{recommended_music_ids[i]}" 
-                                width="100%" height="80" frameborder="0" 
-                                allowtransparency="true" allow="encrypted-media" 
-                                style="border-radius: 12px; box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);">
-                        </iframe>
-                    </div>
-                    """,
-                    unsafe_allow_html=True
-                )
+    if recommend_button:
+        # Load the appropriate music dataset based on emotion
+        music, similarity = load_music_data(emotion)
+
+        # Step 3: Select song from the detected emotion's song list
+        song_list = music['song'].values
+        selected_song = st.selectbox("Type or select a song from the dropdown", song_list)
+
+        # Step 4: Show recommendations based on selected song
+        if selected_song:
+            recommended_music_names, recommended_music_posters, recommended_music_previews, recommended_music_ids = recommend(selected_song, music, similarity)
+            # Display recommendations in a two-column layout
+            cols = st.columns(2)  # Create two columns
+            for i in range(len(recommended_music_names)):
+                col = cols[i % 2]  # Alternate between the two columns (left and right)
+                with col:
+                    st.markdown(
+                        f"""
+                        <div style="
+                            display: flex; 
+                            align-items: center; 
+                            justify-content: center; 
+                            margin-bottom: 20px;">
+                            <iframe src="https://open.spotify.com/embed/track/{recommended_music_ids[i]}" 
+                                    width="100%" height="80" frameborder="0" 
+                                    allowtransparency="true" allow="encrypted-media" 
+                                    style="border-radius: 12px; box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);">
+                            </iframe>
+                        </div>
+                        """,
+                        unsafe_allow_html=True
+                    )
