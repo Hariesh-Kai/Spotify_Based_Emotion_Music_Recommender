@@ -5,11 +5,7 @@ import streamlit as st
 import joblib
 from tensorflow import keras
 import mediapipe as mp
-import pandas as pd
-import time
 import pickle
-import requests
-from io import BytesIO
 import spotipy
 from spotipy.oauth2 import SpotifyClientCredentials
 from sklearn.preprocessing import LabelEncoder
