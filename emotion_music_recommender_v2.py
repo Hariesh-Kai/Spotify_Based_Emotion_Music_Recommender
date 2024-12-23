@@ -122,15 +122,15 @@ if image_file:
         
         # Hide the camera input after the detection is complete
         st.session_state['image_taken'] = True  # Track that image was taken and processed
-        st.experimental_rerun()  # Trigger a rerun to update the UI
 
 # Step 2: Once emotion is detected, show recommendations
 if st.session_state['image_taken']:
     emotion = st.session_state['detected_emotion']
     
     # Hide camera input and show recommendation button
-    st.camera_input("Take a photo")  # Hide the camera input field after the image is taken
-
+    st.session_state['image_taken'] = False  # Reset the state to allow for a new photo after recommendation
+    st.write("Emotion Detected: ", emotion)
+    
     # Enable the recommendation button after the image is processed
     recommend_button = st.button("Get Music Recommendations")
 
