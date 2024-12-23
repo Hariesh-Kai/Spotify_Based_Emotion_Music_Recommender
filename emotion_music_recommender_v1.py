@@ -12,6 +12,8 @@ import requests
 from io import BytesIO
 import spotipy
 from spotipy.oauth2 import SpotifyClientCredentials
+from sklearn.preprocessing import LabelEncoder
+
 
 # Load the trained model and label encoder from local files
 MODEL_PATH = "./models/mediapipe_3emotion_model_1.h5"
