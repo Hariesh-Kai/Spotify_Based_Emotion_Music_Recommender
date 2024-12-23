@@ -21,7 +21,7 @@ LABEL_ENCODER_PATH = "./Label_Encoder/label_encoder_3_emotion.pkl"
 
 model = keras.models.load_model(MODEL_PATH)
 le = LabelEncoder()
-joblib.dump(le, LABEL_ENCODER_PATH)
+le = joblib.dump(le, LABEL_ENCODER_PATH)
 
 # Initialize MediaPipe Face Mesh
 mp_face_mesh = mp.solutions.face_mesh
