@@ -84,8 +84,8 @@ def process_frame(frame):
 
 # Load music and similarity data based on detected emotion
 def load_music_data(emotion):
-    music = pickle.load(open(f'D:/Music_Recommender/pickle/dataframe/{emotion.lower()}_df.pkl', 'rb'))
-    similarity = pickle.load(open(f'D:/Music_Recommender/pickle/similarity/{emotion.lower()}_similarity.pkl', 'rb'))
+    music = pickle.load(open(f'./pickle/dataframe/{emotion.lower()}_df.pkl', 'rb'))
+    similarity = pickle.load(open(f'./pickle/similarity/{emotion.lower()}_similarity.pkl', 'rb'))
     return music, similarity
 
 # Streamlit app setup
