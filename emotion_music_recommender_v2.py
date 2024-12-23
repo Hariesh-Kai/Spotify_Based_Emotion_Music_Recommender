@@ -101,36 +101,33 @@ if 'image_taken' not in st.session_state:
     st.session_state['image_taken'] = False
 
 # Step 1: Start emotion detection with camera input
-image_file = st.camera_input("Take a photo")
+if not st.session_state['image_taken']:
+    image_file = st.camera_input("Take a photo")
 
-# When the photo is taken, process the image, detect emotion and hide the camera input
-if image_file:
-    # Convert the uploaded image to a format usable by OpenCV
-    file_bytes = np.asarray(bytearray(image_file.read()), dtype=np.uint8)
-    frame = cv2.imdecode(file_bytes, 1)
-    
-    # Process the image to detect emotion
-    frame, detected_emotion = process_image(frame)
-    
-    if detected_emotion:
-        # Save the emotion in session state
-        st.session_state['detected_emotion'] = detected_emotion
-        
-        # Show detected emotion feedback
-        st.write(f"Emotion Detected: {detected_emotion}")
-        st.balloons()
-        
-        # Hide the camera input after the detection is complete
-        st.session_state['image_taken'] = True  # Track that image was taken and processed
+    if image_file:
+        # Convert the uploaded image to a format usable by OpenCV
+        file_bytes = np.asarray(bytearray(image_file.read()), dtype=np.uint8)
+        frame = cv2.imdecode(file_bytes, 1)
+
+        # Process the image to detect emotion
+        frame, detected_emotion = process_image(frame)
+
+        if detected_emotion:
+            # Save the emotion in session state
+            st.session_state['detected_emotion'] = detected_emotion
+            st.session_state['image_taken'] = True  # Mark image as taken
+
+            # Show detected emotion feedback
+            st.write(f"Emotion Detected: {detected_emotion}")
+            st.balloons()
 
 # Step 2: Once emotion is detected, show recommendations
 if st.session_state['image_taken']:
     emotion = st.session_state['detected_emotion']
-    
-    # Hide camera input and show recommendation button
-    st.session_state['image_taken'] = False  # Reset the state to allow for a new photo after recommendation
+
+    # Show detected emotion
     st.write("Emotion Detected: ", emotion)
-    
+
     # Enable the recommendation button after the image is processed
     recommend_button = st.button("Get Music Recommendations")
 
