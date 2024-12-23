@@ -83,7 +83,6 @@ def process_image(frame):
         return frame, emotion
     return frame, None
 
-
 # Load music and similarity data based on detected emotion
 def load_music_data(emotion):
     music = pickle.load(open(f'./pickle/dataframe/{emotion.lower()}_df.pkl', 'rb'))
@@ -98,29 +97,31 @@ st.write("This app detects your emotion and recommends music based on the detect
 if 'detected_emotion' not in st.session_state:
     st.session_state['detected_emotion'] = None
 
+# Step 1: Start emotion detection with camera input
+image_file = st.camera_input("Take a photo")
+
+# When the photo is taken, process the image, detect emotion and hide the camera input
 if image_file:
     # Convert the uploaded image to a format usable by OpenCV
     file_bytes = np.asarray(bytearray(image_file.read()), dtype=np.uint8)
     frame = cv2.imdecode(file_bytes, 1)
     
-    # Show the uploaded image as a preview
-    st.image(frame, caption="Captured Image", channels="BGR")
-    
     # Process the image to detect emotion
     frame, detected_emotion = process_image(frame)
     
     if detected_emotion:
+        # Save the emotion in session state
         st.session_state['detected_emotion'] = detected_emotion
-        st.write(f"Detected Emotion: {detected_emotion}")
-    
-        # Show the emotion feedback
+        
+        # Show detected emotion feedback
         st.write(f"Emotion Detected: {detected_emotion}")
         st.balloons()
-
-
+        
+        # Hide the camera input after the detection is complete
+        st.session_state['image_taken'] = True  # Track that image was taken and processed
 
 # Step 2: Once emotion is detected, show recommendations
-if st.session_state['detected_emotion']:
+if st.session_state['image_taken']:
     emotion = st.session_state['detected_emotion']
     
     # Load the appropriate music dataset based on emotion
@@ -130,28 +131,27 @@ if st.session_state['detected_emotion']:
     song_list = music['song'].values
     selected_song = st.selectbox("Type or select a song from the dropdown", song_list)
 
-
-# Step 4: Show recommendations based on selected song
-if st.button('Show Recommendation'):
-    recommended_music_names, recommended_music_posters, recommended_music_previews, recommended_music_ids = recommend(selected_song, music, similarity)
-    # Display recommendations in a two-column layout
-    cols = st.columns(2)  # Create two columns
-    for i in range(len(recommended_music_names)):
-        col = cols[i % 2]  # Alternate between the two columns (left and right)
-        with col:
-            st.markdown(
-                f"""
-                <div style="
-                    display: flex; 
-                    align-items: center; 
-                    justify-content: center; 
-                    margin-bottom: 20px;">
-                    <iframe src="https://open.spotify.com/embed/track/{recommended_music_ids[i]}" 
-                            width="100%" height="80" frameborder="0" 
-                            allowtransparency="true" allow="encrypted-media" 
-                            style="border-radius: 12px; box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);">
-                    </iframe>
-                </div>
-                """,
-                unsafe_allow_html=True
-            )
+    # Step 4: Show recommendations based on selected song
+    if selected_song:
+        recommended_music_names, recommended_music_posters, recommended_music_previews, recommended_music_ids = recommend(selected_song, music, similarity)
+        # Display recommendations in a two-column layout
+        cols = st.columns(2)  # Create two columns
+        for i in range(len(recommended_music_names)):
+            col = cols[i % 2]  # Alternate between the two columns (left and right)
+            with col:
+                st.markdown(
+                    f"""
+                    <div style="
+                        display: flex; 
+                        align-items: center; 
+                        justify-content: center; 
+                        margin-bottom: 20px;">
+                        <iframe src="https://open.spotify.com/embed/track/{recommended_music_ids[i]}" 
+                                width="100%" height="80" frameborder="0" 
+                                allowtransparency="true" allow="encrypted-media" 
+                                style="border-radius: 12px; box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);">
+                        </iframe>
+                    </div>
+                    """,
+                    unsafe_allow_html=True
+                )
