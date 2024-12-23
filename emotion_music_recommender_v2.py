@@ -100,14 +100,22 @@ if 'detected_emotion' not in st.session_state:
 
 # Step 1: Start emotion detection with camera input
 image_file = st.camera_input("Start Emotion Detection")
+
 if image_file:
     # Convert the uploaded image to a format usable by OpenCV
     file_bytes = np.asarray(bytearray(image_file.read()), dtype=np.uint8)
     frame = cv2.imdecode(file_bytes, 1)
-    frame, detected_emotion = process_image(frame)
-    if detected_emotion:
-        st.session_state['detected_emotion'] = detected_emotion
-        st.write(f"Detected Emotion: {detected_emotion}")
+    
+    with st.spinner('Processing image...'):
+        frame, detected_emotion = process_image(frame)
+        if detected_emotion:
+            st.session_state['detected_emotion'] = detected_emotion
+            st.success(f"Detected Emotion: {detected_emotion}")
+        else:
+            st.error("Could not detect any emotion. Please try again.")
+
+    # Clear camera input to allow for a new capture
+    st.experimental_rerun()
 
 
 # Step 2: Once emotion is detected, show recommendations
