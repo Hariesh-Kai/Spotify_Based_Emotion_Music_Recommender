@@ -21,6 +21,7 @@ LABEL_ENCODER_PATH = "./Label_Encoder/label_encoder_3_emotion.pkl"
 
 model = keras.models.load_model(MODEL_PATH)
 le = joblib.load(LABEL_ENCODER_PATH)
+
 # Initialize MediaPipe Face Mesh
 mp_face_mesh = mp.solutions.face_mesh
 face_mesh = mp_face_mesh.FaceMesh(static_image_mode=True, max_num_faces=1)
@@ -91,23 +92,29 @@ def load_music_data(emotion):
 st.title("Real-Time Emotion-Based Music Recommender")
 st.write("This app detects your emotion and recommends music based on the detected emotion.")
 
-# Initialize session state for emotion
+# Initialize session state for emotion and image_taken if not already initialized
 if 'detected_emotion' not in st.session_state:
     st.session_state['detected_emotion'] = None
 
+if 'image_taken' not in st.session_state:
+    st.session_state['image_taken'] = False
+
 # Step 1: Start emotion detection with camera input
-image_file = st.camera_input("Take a photo")
-if image_file:
-    # Convert the uploaded image to a format usable by OpenCV
-    file_bytes = np.asarray(bytearray(image_file.read()), dtype=np.uint8)
-    frame = cv2.imdecode(file_bytes, 1)
-    frame, detected_emotion = process_image(frame)
-    if detected_emotion:
-        st.session_state['detected_emotion'] = detected_emotion
-        st.write(f"Detected Emotion: {detected_emotion}")
+if not st.session_state['image_taken']:
+    image_file = st.camera_input("Take a photo")
+    if image_file:
+        # Convert the uploaded image to a format usable by OpenCV
+        file_bytes = np.asarray(bytearray(image_file.read()), dtype=np.uint8)
+        frame = cv2.imdecode(file_bytes, 1)
+        frame, detected_emotion = process_image(frame)
+        if detected_emotion:
+            st.session_state['detected_emotion'] = detected_emotion
+            st.session_state['image_taken'] = True  # Mark image as taken
+            st.write(f"Emotion Detected: {detected_emotion}")
+            st.balloons()
 
 # Step 2: Once emotion is detected, show recommendations
-if st.session_state['detected_emotion']:
+if st.session_state['image_taken']:
     emotion = st.session_state['detected_emotion']
     st.write(f"Emotion Detected: {emotion}")
 
