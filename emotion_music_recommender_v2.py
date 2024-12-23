@@ -93,9 +93,12 @@ def load_music_data(emotion):
 st.title("Real-Time Emotion-Based Music Recommender")
 st.write("This app detects your emotion and recommends music based on the detected emotion.")
 
-# Initialize session state for emotion
+# Initialize session state for emotion and image_taken if not already initialized
 if 'detected_emotion' not in st.session_state:
     st.session_state['detected_emotion'] = None
+
+if 'image_taken' not in st.session_state:
+    st.session_state['image_taken'] = False
 
 # Step 1: Start emotion detection with camera input
 image_file = st.camera_input("Take a photo")
