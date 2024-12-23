@@ -5,30 +5,59 @@ import streamlit as st
 import joblib
 from tensorflow import keras
 import mediapipe as mp
-import pandas as pd
-import time
 import pickle
+import time
 import spotipy
 from spotipy.oauth2 import SpotifyClientCredentials
+from streamlit_webrtc import webrtc_streamer, VideoTransformerBase
+import av
 
-# Load the trained model and label encoder
+# Paths to model and label encoder
 MODEL_PATH = './models/mediapipe_3emotion_model_1.h5'
 LABEL_ENCODER_PATH = './Label_Encoder/label_encoder_3_emotion.pkl'
 
+# Load the trained model and label encoder
 model = keras.models.load_model(MODEL_PATH)
 le = joblib.load(LABEL_ENCODER_PATH)
 
-# Initialize MediaPipe Face Mesh
-mp_face_mesh = mp.solutions.face_mesh
-face_mesh = mp_face_mesh.FaceMesh(static_image_mode=True, max_num_faces=1)
-
-# Spotify credentials
+# Spotify API setup
 CLIENT_ID = os.getenv("SPOTIFY_CLIENT_ID")
 CLIENT_SECRET = os.getenv("SPOTIFY_CLIENT_SECRET")
 client_credentials_manager = SpotifyClientCredentials(client_id=CLIENT_ID, client_secret=CLIENT_SECRET)
 sp = spotipy.Spotify(client_credentials_manager=client_credentials_manager)
 
-# Get album cover URL and audio preview URL
+# MediaPipe Face Mesh initialization
+mp_face_mesh = mp.solutions.face_mesh
+face_mesh = mp_face_mesh.FaceMesh(static_image_mode=True, max_num_faces=1)
+
+# Extract face landmarks using MediaPipe
+def extract_landmarks(image):
+    image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+    results = face_mesh.process(image_rgb)
+    if results.multi_face_landmarks:
+        landmarks = results.multi_face_landmarks[0]
+        landmark_array = np.array([[landmark.x, landmark.y, landmark.z] for landmark in landmarks.landmark])
+        return landmark_array.flatten()
+    return None
+
+# Real-time emotion detection transformer for streamlit-webrtc
+class EmotionDetectionTransformer(VideoTransformerBase):
+    def __init__(self):
+        self.model = model
+        self.le = le
+        self.face_mesh = mp.solutions.face_mesh.FaceMesh(static_image_mode=True, max_num_faces=1)
+
+    def transform(self, frame):
+        img = frame.to_ndarray(format="bgr24")
+        landmarks = extract_landmarks(img)
+        if landmarks is not None:
+            prediction = self.model.predict(np.expand_dims(landmarks, axis=0))
+            predicted_class = np.argmax(prediction)
+            emotion = self.le.inverse_transform([predicted_class])[0]
+            cv2.putText(img, f"Emotion: {emotion}", (10, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+        return av.VideoFrame.from_ndarray(img, format="bgr24")
+
+# Spotify integration for album cover and previews
 def get_song_album_cover_url_and_preview_url(song_name, artist_name):
     search_query = f"track:{song_name} artist:{artist_name}"
     results = sp.search(q=search_query, type="track")
@@ -60,112 +89,51 @@ def recommend(song, music, similarity):
 
     return recommended_music_names, recommended_music_posters, recommended_music_previews, recommended_music_ids
 
-# Extract face landmarks using MediaPipe
-def extract_landmarks(image):
-    image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-    results = face_mesh.process(image_rgb)
-
-    if results.multi_face_landmarks:
-        landmarks = results.multi_face_landmarks[0]
-        landmark_array = np.array([[landmark.x, landmark.y, landmark.z] for landmark in landmarks.landmark])
-        return landmark_array.flatten()
-    return None
-
-# Process each video frame to predict emotion
-def process_frame(frame):
-    landmarks = extract_landmarks(frame)
-    if landmarks is not None:
-        prediction = model.predict(np.expand_dims(landmarks, axis=0))
-        predicted_class = np.argmax(prediction)
-        emotion = le.inverse_transform([predicted_class])[0]
-        return frame, emotion
-    return frame, None
-
-# Real-time emotion detection using webcam
-def real_time_emotion_detection():
-    cap = cv2.VideoCapture(0)
-    if not cap.isOpened():
-        st.error("Error: Could not open webcam.")
-        return
-
-    st.write("Detecting emotion...")
-
-    video_placeholder = st.empty()
-    latest_emotion = None
-
-    while cap.isOpened():
-        ret, frame = cap.read()
-        if not ret:
-            st.error("Error: Could not read frame.")
-            break
-
-        frame, detected_emotion = process_frame(frame)
-        video_placeholder.image(frame, channels="BGR")
-
-        if detected_emotion:
-            st.session_state['detected_emotion'] = detected_emotion
-            st.write(f"Detected Emotion: {detected_emotion}")
-            cap.release()  # Release webcam after detecting emotion
-            break
-
-        time.sleep(0.1)
-
-    cap.release()
-
-# Load music and similarity data based on detected emotion
+# Load music data based on emotion
 def load_music_data(emotion):
     music = pickle.load(open(f'./pickle/dataframe/{emotion.lower()}_df.pkl', 'rb'))
     similarity = pickle.load(open(f'./pickle/similarity/{emotion.lower()}_similarity.pkl', 'rb'))
     return music, similarity
 
-# Streamlit app setup
+# Streamlit app
 st.title("Real-Time Emotion-Based Music Recommender")
 st.write("This app detects your emotion and recommends music based on the detected emotion.")
 
-# Initialize session state for emotion
-if 'detected_emotion' not in st.session_state:
-    st.session_state['detected_emotion'] = None
+# Webcam emotion detection
+st.header("Step 1: Detect Your Emotion")
+if st.button("Start Webcam"):
+    webrtc_streamer(key="emotion-detection", video_transformer_factory=EmotionDetectionTransformer)
 
-# Step 1: Start emotion detection
-if st.button("Start Emotion Detection"):
-    real_time_emotion_detection()
-
-# Step 2: Once emotion is detected, show recommendations
-if st.session_state['detected_emotion']:
+# Music recommendation after emotion detection
+st.header("Step 2: Get Music Recommendations")
+if 'detected_emotion' in st.session_state:
     emotion = st.session_state['detected_emotion']
     st.write(f"Emotion Detected: {emotion}")
     
-    # Load the appropriate music dataset based on emotion
     music, similarity = load_music_data(emotion)
-
-    # Step 3: Select song from the detected emotion's song list
     song_list = music['song'].values
     selected_song = st.selectbox("Type or select a song from the dropdown", song_list)
 
-# Step 4: Show recommendations based on selected song
-if st.button('Show Recommendation'):
-    recommended_music_names, recommended_music_posters, recommended_music_previews, recommended_music_ids = recommend(selected_song, music, similarity)
+    if st.button('Show Recommendation'):
+        recommended_music_names, recommended_music_posters, recommended_music_previews, recommended_music_ids = recommend(selected_song, music, similarity)
 
-    # Display recommendations in a two-column layout
-    cols = st.columns(2)  # Create two columns
-
-    for i in range(len(recommended_music_names)):
-        col = cols[i % 2]  # Alternate between the two columns (left and right)
-
-        with col:
-            st.markdown(
-                f"""
-                <div style="
-                    display: flex; 
-                    align-items: center; 
-                    justify-content: center; 
-                    margin-bottom: 20px;">
-                    <iframe src="https://open.spotify.com/embed/track/{recommended_music_ids[i]}" 
-                            width="100%" height="80" frameborder="0" 
-                            allowtransparency="true" allow="encrypted-media" 
-                            style="border-radius: 12px; box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);">
-                    </iframe>
-                </div>
-                """,
-                unsafe_allow_html=True
-            )
+        cols = st.columns(2)  # Create two columns for display
+        for i in range(len(recommended_music_names)):
+            col = cols[i % 2]
+            with col:
+                st.markdown(
+                    f"""
+                    <div style="
+                        display: flex; 
+                        align-items: center; 
+                        justify-content: center; 
+                        margin-bottom: 20px;">
+                        <iframe src="https://open.spotify.com/embed/track/{recommended_music_ids[i]}" 
+                                width="100%" height="80" frameborder="0" 
+                                allowtransparency="true" allow="encrypted-media" 
+                                style="border-radius: 12px; box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);">
+                        </iframe>
+                    </div>
+                    """,
+                    unsafe_allow_html=True
+                )
