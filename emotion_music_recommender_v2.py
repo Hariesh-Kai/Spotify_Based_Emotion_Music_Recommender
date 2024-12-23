@@ -98,22 +98,30 @@ st.write("This app detects your emotion and recommends music based on the detect
 if 'detected_emotion' not in st.session_state:
     st.session_state['detected_emotion'] = None
 
-# Step 1: Start emotion detection with camera input
-image_file = st.camera_input("Take a photo")
 if image_file:
     # Convert the uploaded image to a format usable by OpenCV
     file_bytes = np.asarray(bytearray(image_file.read()), dtype=np.uint8)
     frame = cv2.imdecode(file_bytes, 1)
+    
+    # Show the uploaded image as a preview
+    st.image(frame, caption="Captured Image", channels="BGR")
+    
+    # Process the image to detect emotion
     frame, detected_emotion = process_image(frame)
+    
     if detected_emotion:
         st.session_state['detected_emotion'] = detected_emotion
         st.write(f"Detected Emotion: {detected_emotion}")
+    
+        # Show the emotion feedback
+        st.write(f"Emotion Detected: {detected_emotion}")
+        st.balloons()
+
 
 
 # Step 2: Once emotion is detected, show recommendations
 if st.session_state['detected_emotion']:
     emotion = st.session_state['detected_emotion']
-    st.write(f"Emotion Detected: {emotion}")
     
     # Load the appropriate music dataset based on emotion
     music, similarity = load_music_data(emotion)
@@ -121,6 +129,7 @@ if st.session_state['detected_emotion']:
     # Step 3: Select song from the detected emotion's song list
     song_list = music['song'].values
     selected_song = st.selectbox("Type or select a song from the dropdown", song_list)
+
 
 # Step 4: Show recommendations based on selected song
 if st.button('Show Recommendation'):
