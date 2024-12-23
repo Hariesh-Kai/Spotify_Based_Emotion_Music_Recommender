@@ -8,3 +8,4 @@ pandas
 numpy
 protobuf
 scikit-learn
+streamlit-webrtc
