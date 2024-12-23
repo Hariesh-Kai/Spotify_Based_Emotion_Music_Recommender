@@ -12,9 +12,8 @@ import spotipy
 from spotipy.oauth2 import SpotifyClientCredentials
 
 # Load the trained model and label encoder
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-MODEL_PATH = os.path.join(BASE_DIR, 'models', 'mediapipe_3emotion_model_1.h5')
-LABEL_ENCODER_PATH = os.path.join(BASE_DIR, 'Label_Encoder', 'label_encoder_3_emotion.pkl')
+MODEL_PATH = './models/mediapipe_3emotion_model_1.h5'
+LABEL_ENCODER_PATH = './Label_Encoder/label_encoder_3_emotion.pkl'
 
 model = keras.models.load_model(MODEL_PATH)
 le = joblib.load(LABEL_ENCODER_PATH)
@@ -24,8 +23,8 @@ mp_face_mesh = mp.solutions.face_mesh
 face_mesh = mp_face_mesh.FaceMesh(static_image_mode=True, max_num_faces=1)
 
 # Spotify credentials
-CLIENT_ID = os.getenv('SPOTIFY_CLIENT_ID')
-CLIENT_SECRET = os.getenv('SPOTIFY_CLIENT_SECRET')
+CLIENT_ID = "defbade4e685489eb7339f1c0d2e7817"
+CLIENT_SECRET = "8ff0954c9a21473f99f164a55aa4de0b"
 client_credentials_manager = SpotifyClientCredentials(client_id=CLIENT_ID, client_secret=CLIENT_SECRET)
 sp = spotipy.Spotify(client_credentials_manager=client_credentials_manager)
 
@@ -114,14 +113,10 @@ def real_time_emotion_detection():
     cap.release()
 
 # Load music and similarity data based on detected emotion
-# For pickled files
 def load_music_data(emotion):
-    music_path = os.path.join(BASE_DIR, 'pickle', 'dataframe', f'{emotion.lower()}_df.pkl')
-    similarity_path = os.path.join(BASE_DIR, 'pickle', 'similarity', f'{emotion.lower()}_similarity.pkl')
-    music = pickle.load(open(music_path, 'rb'))
-    similarity = pickle.load(open(similarity_path, 'rb'))
+    music = pickle.load(open(f'./pickle/dataframe/{emotion.lower()}_df.pkl', 'rb'))
+    similarity = pickle.load(open(f'./pickle/similarity/{emotion.lower()}_similarity.pkl', 'rb'))
     return music, similarity
-
 
 # Streamlit app setup
 st.title("Real-Time Emotion-Based Music Recommender")
