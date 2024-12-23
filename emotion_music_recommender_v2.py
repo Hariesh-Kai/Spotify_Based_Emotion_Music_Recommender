@@ -72,7 +72,7 @@ def extract_landmarks(image):
     return None
 
 # Process each video frame to predict emotion
-def process_frame(frame):
+def process_image(frame):
     landmarks = extract_landmarks(frame)
     if landmarks is not None:
         prediction = model.predict(np.expand_dims(landmarks, axis=0))
